@@ -9,6 +9,7 @@ Unlike heavy, object-oriented modern graphics libraries, this system operates on
 * **Platform Independence:** The logic and drawing code are completely separated from the operating system hooks, making the rendering math 100% ready for future compilation onto cross-platform silicon (ARM64, RISC-V, etc.).
 
 ## 📁 Repository Map
+* 📁 `assets/` — bin based images
 * 📁 `config/` — Text-based layout scripts (`config.ini`) controlling user-space dimensions.
 * 📁 `lib/` — Shared infrastructure binaries and stateless graphics kernel primitives.
 * 📁 `src/` — Master timeline assembly drivers and output binaries.
