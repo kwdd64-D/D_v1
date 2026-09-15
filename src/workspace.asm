@@ -1,15 +1,21 @@
 format PE64 GUI 5.0
 entry start
 
-include 'C:\fasm\INCLUDE\WIN64W.INC'
+; Resolved via FASM's own include search path (the INCLUDE environment
+; variable). build.bat sets this for you before invoking fasm, so this
+; line works regardless of where FASM is installed on your machine.
+include 'win64w.inc'
 
 section '.data' data readable writeable
     _class        TCHAR 'NakedCanvasClass', 0
     _title        TCHAR 'Workspace', 0
     _error        TCHAR 'Window startup failed.', 0
     
-    ; --- TARGET PATH POINTED TO YOUR CONFIG DIRECTORY ---
-    _ini_path     du 'D:\D_v1\config\config.ini', 0
+    ; --- Config path is resolved at runtime, relative to this .exe's own
+    ; folder (see the "Locate config.ini" block in start:), so the build
+    ; doesn't need to live at any particular drive/folder on disk.
+    _ini_path     rb 520          ; MAX_PATH (260) WCHARs, filled in at startup
+    _ini_suffix   du '..\config\config.ini', 0
     _ini_section  du 'Workspace', 0
     _ini_width    du 'Width', 0
     _ini_height   du 'Height', 0
@@ -26,15 +32,40 @@ section '.data' data readable writeable
 ; (its close-button macros use ICON_CELL), and titlebar.inc must come
 ; before win64_host.inc (its WM_NCHITTEST/WM_LBUTTONDOWN handlers invoke
 ; titlebar.inc's macros, which need to already be defined).
-include 'D:\D_v1\lib\icon_ids.inc'
-include 'D:\D_v1\lib\icon.inc'
-include 'D:\D_v1\lib\titlebar.inc'
-include 'D:\D_v1\lib\win64_host.inc'
-include 'D:\D_v1\lib\draw2d.inc'
+include '..\lib\icon_ids.inc'
+include '..\lib\icon.inc'
+include '..\lib\titlebar.inc'
+include '..\lib\win64_host.inc'
+include '..\lib\draw2d.inc'
 
 section '.text' code readable executable
 start:
     sub rsp, 40 ; Maintain rigid 16-byte shadow stack alignment boundaries
+
+    ; 0. Locate config.ini relative to THIS executable's own folder, so the
+    ; build works regardless of which drive/folder the repo was cloned into.
+    ; _ini_path ends up as ".....\src\..\config\config.ini", which Windows
+    ; resolves fine even with the ".." in it.
+    invoke GetModuleFileNameW, 0, _ini_path, 260
+    mov rcx, rax                    ; rcx = index just past the last char
+.find_slash:
+    test rcx, rcx
+    jz .slash_done                  ; safety net: no backslash found at all
+    dec rcx
+    movzx eax, word [_ini_path + rcx*2]
+    cmp eax, '\'
+    jne .find_slash
+    inc rcx                         ; keep the slash, resume writing after it
+.slash_done:
+    lea rdi, [_ini_path + rcx*2]
+    lea rsi, [_ini_suffix]
+.copy_suffix:
+    movzx eax, word [rsi]
+    mov [rdi], ax
+    add rsi, 2
+    add rdi, 2
+    test eax, eax
+    jnz .copy_suffix
 
     ; 1. SUCK THE LIVE INI VARIABLES FROM DISK NATIVELY INTO REGISTERS
     invoke GetPrivateProfileIntW, _ini_section, _ini_width, 800, _ini_path
@@ -144,6 +175,6 @@ section '.idata' import data readable
             user32,   'USER32.DLL', \
             gdi32,    'GDI32.DLL'
 
-    include 'C:\fasm\INCLUDE\API\KERNEL32.INC'
-    include 'C:\fasm\INCLUDE\API\user32.inc'
-    include 'C:\fasm\INCLUDE\API\gdi32.inc'
+    include 'API\KERNEL32.INC'
+    include 'API\USER32.INC'
+    include 'API\GDI32.INC'
