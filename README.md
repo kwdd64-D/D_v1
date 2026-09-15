@@ -10,10 +10,11 @@ Unlike heavy, object-oriented modern graphics libraries, this system operates on
 
 ## 📁 Repository Map
 * 📁 `assets/` — bin based images
+* 📁 `build/`  — Output binaries land here (`build.bat` creates it automatically; not committed to the repo).
 * 📁 `config/` — Text-based layout scripts (`config.ini`) controlling user-space dimensions.
-* 📁 `lib/` — Shared infrastructure binaries and stateless graphics kernel primitives.
-* 📁 `src/` — Master timeline assembly drivers (source only).
-* 📁 `build/` — Output binaries land here (`build.bat` creates it automatically; not committed to the repo).
+* 📁 `docs/`   — general documentation
+* 📁 `lib/`    — Shared infrastructure binaries and stateless graphics kernel primitives.
+* 📁 `src/`    — Master timeline assembly drivers (source only).
 
 ## 🚀 Build Instructions
 Requirements:
