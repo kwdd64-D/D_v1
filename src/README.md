@@ -6,11 +6,20 @@ This folder holds the master assembly timeline files that compile directly into 
 
 The centralized orchestral conductor script.
 1. Establishes the Win64 ABI stack boundaries.
-2. Pulls `[Workspace] Width/Height` from `config.ini` via `GetPrivateProfileIntW`, then calls `init_titlebar` (from `titlebar.inc`) to pull `[TitleBar] Location/Thickness/Color` from the same file.
-3. Computes global row and byte-size pitch variables in CPU registers.
-4. Registers the window class and allocates the frame buffer, then caches the canvas dimensions into `r11`/`r12` for the rest of the paint sequence — every draw macro downstream expects them there.
-5. Paints the frame buffer, in order: clear the canvas → draw the title bar (`titlebar.inc`) → compute and stamp the close button (`layout_close_icon` then `draw_icon_masked`, from `titlebar.inc`/`icon.inc`) → the two placeholder squares.
-6. Creates the borderless window and hands control to the message pump loop, where `win64_host.inc`'s `WindowProc` takes over for the life of the app.
+2. Directs `GetPrivateProfileIntW` to pull configuration text values from your configuration maps — canvas size first, then bar `Location`/`Thickness`/`Color` via `bar.inc`'s `init_bar`.
+3. Automatically computes global row and byte size pitch variables in CPU registers.
+4. Invokes your decoupled library elements to paint the screen buffer, in order: clear the canvas, paint the bar, position and stamp the close button on top of it, then paint the remaining scene elements — before handing engine control down to the active message processing pump loop.
 
-Include order matters and is commented directly in the file: `icon_ids.inc`/`icon.inc` before `titlebar.inc` (its close-button macros need `ICON_CELL`), and `titlebar.inc` before `win64_host.inc` (its `WM_NCHITTEST`/`WM_LBUTTONDOWN` handlers call straight into `titlebar.inc`'s macros, which have to already be defined by then).
+## 🛠️ Include Order Dependency
 
+`workspace.asm`'s include order isn't arbitrary — several of these files rely on macros defined by files included earlier in the chain:
+
+```
+icon_ids.inc   ; constants only, no dependencies
+icon.inc       ; no dependencies on the others
+bar.inc   ; uses ICON_CELL from icon_ids.inc
+win64_host.inc ; invokes bar.inc's hittest_bar / hittest_close_button
+draw2d.inc     ; used by bar.inc's draw_bar (only at invocation time)
+```
+
+If a new library file introduces a macro that another file's *code* (not just its own macro bodies) invokes directly, it needs to move earlier in this list.
