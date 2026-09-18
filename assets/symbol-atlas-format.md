@@ -84,7 +84,7 @@ and shared by whatever generates the file and whatever blits from it:
 | 0     | `ICON_MINIMIZE`   |                                                    |
 | 1     | `ICON_MAXIMIZE`   |                                                    |
 | 2     | `ICON_CLOSE`      |                                                    |
-| 3     | `ICON_TITLEBAR`   | app/window icon, not a clickable control          |
+| 3     | `ICON_APP`        | app/window icon, not a clickable control          |
 | 4     | `ICON_LEFT`       | arrow                                             |
 | 5     | `ICON_RIGHT`      | arrow                                             |
 | 6     | `ICON_REFRESH`    |                                                    |
@@ -154,7 +154,7 @@ CELL = 16
 
 # Icons in explicit index order — must match the .inc constants exactly.
 ICON_ORDER = [
-    'ICON_MINIMIZE', 'ICON_MAXIMIZE', 'ICON_CLOSE', 'ICON_TITLEBAR',
+    'ICON_MINIMIZE', 'ICON_MAXIMIZE', 'ICON_CLOSE', 'ICON_APP',
     'ICON_LEFT', 'ICON_RIGHT', 'ICON_REFRESH', 'ICON_HAMBURGER',
     'ICON_MAX_WIDTH', 'ICON_MAX_HEIGHT',
 ]
@@ -173,4 +173,3 @@ arithmetic relationship to catch this for you the way `ascii - 0x20`
 does; and (b) accidentally exporting a color image instead of collapsing
 it to a single coverage channel, which would silently produce a file
 3× too large and shift every icon after the first.
-
