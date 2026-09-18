@@ -1,8 +1,8 @@
-; File: lib\icon.inc
+; File: D:\D_v1\lib\icon.inc
 ; Generic tintable icon rendering. Owns the embedded symbol atlas bytes
 ; and the mask+tint compositing blit — nothing else. Doesn't know which
 ; icon means what (that's icon_ids.inc) or where on screen it belongs
-; (that's the caller's job — e.g. titlebar.inc for the window-chrome
+; (that's the caller's job — e.g. bar.inc for the window-chrome
 ; buttons).
 ;
 ; Depends on:
@@ -18,7 +18,7 @@ section '.data' data readable writeable
     ; if icons ever need to be hot-swappable independent of a rebuild.
     align 4
     symbols_data:
-        file '..\assets\symbols.bin'
+        file 'D:\D_v1\assets\symbols.bin'
 
 ; Paints one 16x16 coverage-masked icon into the frame buffer, tinted
 ; with a flat color. Per pixel: coverage 0 leaves the destination

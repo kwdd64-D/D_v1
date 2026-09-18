@@ -1,31 +1,35 @@
 # 📁 Core Component Libraries (`D:\D_v1\lib\`)
 
-The source files in this folder are reusable components pulled into `workspace.asm`. Most are hardware/OS-agnostic; one has a deliberate, explicitly-flagged dependency on the Win32 layer — called out per file below rather than glossed over, since that seam is exactly what matters whenever the fasmg migration or a non-Windows target comes up.
+The source files contained in this folder represent modular, single-purpose code components. Most are fully stateless (`draw2d.inc`); a few (`bar.inc`, `icon.inc`) now own a small amount of internal state — their own config values or a layout cache — but each still exposes only a narrow macro interface, so nothing outside the file needs to know how that state is stored or when it's recomputed.
 
 ## 📄 `draw2d.inc` (The Painting Kernel)
-**Hardware-agnostic core drawing engine.** Zero Windows-specific APIs, zero x86 hardware-specific string instructions (like `rep stosd`).
-* **`draw_rect_block` Macro:** flat-fills a rectangular region of the frame buffer with a solid color via linear array math. Fully portable to other silicon targets later.
 
-## 📄 `icon.inc` (Tintable Icon Rendering)
-**Hardware-agnostic, same standard as `draw2d.inc`.** Zero Windows-specific APIs.
-* **`symbols_data`:** the icon atlas, pulled in from `D:\D_v1\assets\symbols.bin` at **assemble time** via FASM's `file` directive — not loaded at runtime, so a missing file is a build-time failure, not a boot-time fallback like `config.ini` gets.
-* **`draw_icon_masked` Macro:** composites a single 16×16 coverage mask (format specified in `symbol-atlas-format.md`) into the frame buffer at a flat tint color — `dest = dest*(1-a) + tint*a` per channel — using an integer fast-divide-by-255 identity instead of a hardware divide.
+**Hardware-Agnostic Core Drawing Engine**. It contains zero Windows-specific APIs and zero x86 hardware-specific string instructions (like `rep stosd`).
+* **`draw_rect_block` Macro:** Processes register-to-register index bounds arithmetic to inject color signatures cleanly onto raw byte addresses across scanlines. Because it relies entirely on linear array math, this file is fully ready for deployment onto other silicon target variants later.
 
-## 📄 `icon_ids.inc` (Icon Name Table)
-Pure constants — `ICON_MINIMIZE`, `ICON_CLOSE`, `ICON_MAX_WIDTH`, etc. — mapping each icon's name to its index in `symbols.bin`. No logic, no state. Exists so nothing anywhere ever references an icon by a bare number; appending a new icon means adding one constant here plus one 256-byte cell at the end of the `.bin`, never renumbering.
+## 📄 `bar.inc` (The Bar Module)
 
-## 📄 `titlebar.inc` (Title Bar & Close Button)
-**Mostly hardware-agnostic, with one deliberate, named exception:** `init_titlebar` calls `GetPrivateProfileIntW` directly — the one real Win32 dependency living inside this file. Everything else here — the bar-drawing math, the drag hit-test math, the close-button layout and hit-test math — is plain arithmetic with no OS calls, same standard as `draw2d.inc`/`icon.inc`.
-* **`init_titlebar`:** loads `[TitleBar] Location/Thickness/Color` from `config.ini`.
-* **`draw_titlebar`:** paints the bar along whichever edge is configured — Top, Bottom, Left, or Right.
-* **`hittest_titlebar`:** the edge-aware drag-region test, called from `win64_host.inc`'s `WM_NCHITTEST` handler.
-* **`layout_close_icon` / `hittest_close_button`:** position the close button within the bar (edge-aware, same four cases) and recognize a point landing on it. The *same* macro backs both the drag-exclusion check and the real click handler, so the drawn position and the clickable position can never quietly drift apart from each other.
+Owns everything about the draggable window chrome bar — its configuration, its paint pass, and its interactive regions — so nothing else in the codebase needs to know which edge it's docked to.
+* **`init_bar` Macro:** Pulls `Location`/`Thickness`/`Color` out of `config.ini`'s `[Bar]` section at boot.
+* **`draw_bar` Macro:** Paints the bar along whichever edge is configured — Top, Bottom, Left, or Right — using `draw2d.inc`'s `draw_rect_block` underneath.
+* **`hittest_bar` Macro:** Feeds `WM_NCHITTEST` the edge-aware drag region, so `HTCAPTION` fires correctly no matter which side the bar lives on.
+* **`layout_close_icon` / `hittest_close_button` Macros:** Position and hit-test the close button — carved out of the general drag region so a click there reaches `WindowProc` as an ordinary click instead of starting a window drag. **Confirmed working on all four edges.**
+* **`layout_icon_near_close` / `layout_app_icon` / `layout_center_icons` Macros:** Position minimize/maximize (stacked inward from close), the app icon (opposite end of the bar), and the max-width/max-height pair (centered). Draw-only for now — none of the three have a hit-test yet, so nothing happens if you click them.
+
+## 📄 `icon.inc` (The Tintable Icon Engine)
+
+Owns the embedded symbol atlas and the one routine that turns a flat coverage mask into an on-screen icon in any color, without ever needing a separately-colored source image per color.
+* **`symbols_data`:** The full icon sheet (`D:\D_v1\assets\symbols.bin`), embedded directly into the executable at assemble time via FASM's `file` directive — no runtime file I/O, no allocation.
+* **`draw_icon_masked` Macro:** Composites a 16×16 coverage mask against a flat tint color, per pixel — `dest = dest*(1-a) + tint*a` — using a fast integer approximation in place of a hardware divide.
+
+## 📄 `icon_ids.inc` (The Icon Index Table)
+
+A flat list of named constants (`ICON_CLOSE`, `ICON_MINIMIZE`, …) mapping each icon's name to its byte offset inside `symbols_data`. Exists because — unlike ASCII glyphs, which get their index for free from their character code — icons have no implicit ordering. This file is the single source of truth that both the atlas-generating tool and every blit/hit-test call site must agree on; nothing should ever reference an icon by a bare numeric index.
 
 ## 📄 `win64_host.inc` (The OS Wrapper Layer)
-This file handles the **Windows Liaison Tasks** — platform glue only, no layout logic of its own anymore.
-* **Borderless Canvas Hooking:** `WS_POPUP` window registration, no system title bar or decorations.
-* **`WM_NCHITTEST` Dispatch:** delegates the actual geometry to `titlebar.inc` (`hittest_close_button` first, then `hittest_titlebar`) — this file only decides what to do with the answer: return `HTCAPTION` for a drag, or fall through to `DefWindowProc` otherwise.
-* **`WM_LBUTTONDOWN` Dispatch:** the close button's real click, checked against the same rectangle `hittest_close_button` excludes from dragging — a hit calls `DestroyWindow`.
-* **`StretchDIBits` Presentation:** blits the frame buffer to the window on `WM_PAINT`.
 
-
+This file handles the **Windows 11 Liaison Tasks**. It isolates the volatile platform elements away from your pure layout logic.
+* **Borderless Canvas Hooking:** Implements `WS_POPUP` window registrations to completely drop title bars and window decorations.
+* **`WM_NCHITTEST` Infiltration:** Intercepts mouse coordinates and triggers native `HTCAPTION` returns to enable hardware dragging across an abstract dark header row — now deferring to `bar.inc` for the edge-aware bar region, with an explicit close-button exclusion checked first so the button is never swallowed by the drag region.
+* **`WM_LBUTTONDOWN` Handling:** Catches ordinary client-area clicks and checks them against the close button's hit region via `bar.inc`'s `hittest_close_button`; a hit calls `DestroyWindow` directly. **Confirmed working.**
+* **`StretchDIBits` Presentation:** Executes raw frame buffer bitmap blits directly to the physical graphics card compositor loop during paint refresh tokens.

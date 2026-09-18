@@ -9,7 +9,7 @@
 ICON_MINIMIZE   = 0
 ICON_MAXIMIZE   = 1
 ICON_CLOSE      = 2
-ICON_TITLEBAR   = 3
+ICON_APP        = 3
 ICON_LEFT       = 4
 ICON_RIGHT      = 5
 ICON_REFRESH    = 6

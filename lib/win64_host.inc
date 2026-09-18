@@ -68,7 +68,7 @@ proc WindowProc uses rbx rsi rdi r12, hwnd, uMsg, wParam, lParam
     movsxd rcx, dword [mouse_pt.y]
     hittest_close_button rbx, rcx, .not_in_bar, .check_bar
 .check_bar:
-    hittest_titlebar .in_bar, .not_in_bar
+    hittest_bar .in_bar, .not_in_bar
 
 .in_bar:
     mov rax, HTCAPTION
